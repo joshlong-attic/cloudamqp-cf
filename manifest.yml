@@ -1,0 +1,14 @@
+--- 
+applications: 
+- services: 
+    cloudamqp-dev-7f870: 
+      provider: cloudamqp
+      version: n/a
+      plan: lemur
+      label: cloudamqp-dev
+  path: target/appassembler/
+  url: cloudamqp.a1-app.cf-app.com
+  command: bin/main
+  instances: 1
+  memory: 256M
+  name: cloudamqp

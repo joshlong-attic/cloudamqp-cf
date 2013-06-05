@@ -1,6 +1,7 @@
 package cloudfoundry.services.cloudamqp;
 
 
+import org.apache.commons.logging.*;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.springframework.amqp.core.*;
@@ -27,9 +28,15 @@ import java.util.concurrent.Executors;
 @EnableTransactionManagement
 public class AmqpConfiguration {
 
-    private static String VCAP_SERVICES = "{\"cloudamqp-dev-n/a\":[{\"name\":\"cloudamqp-dev-7f870\",\"label\":\"cloudamqp-dev-n/a\",\"plan\":\"lemur\",\"credentials\":{\"uri\":\"amqp://sjuaygxk:iWba0HKZ65PinlTyxXazuIdf2YnqBvZE@lemur.cloudamqp.com/sjuaygxk\"}}]}";
+    private Log logger = LogFactory.getLog(getClass());
     private String registrationQueue = "registrations";
     private String registrationExchange = this.registrationQueue;
+
+    private void log(String msg, Object... p) throws Throwable {
+        if (logger.isDebugEnabled()) {
+            logger.debug(String.format(msg, p));
+        }
+    }
 
     private String uriFromVcapServices(String vcapServicesString) throws Throwable {
         ObjectMapper mapper = new ObjectMapper();
@@ -47,14 +54,16 @@ public class AmqpConfiguration {
         return credentials.get("uri").asText();
     }
 
-  //  @PostConstruct
+    @PostConstruct
     public void run() throws Throwable {
-
-        for (String k : System.getenv().keySet())
+        for (String k : System.getenv().keySet()) {
             log(k + '=' + System.getenv(k));
+        }
 
-        for (Object k : System.getProperties().keySet())
-             log("" + k + '=' + System.getProperties().getProperty("" + k));
+        for (Object k : System.getProperties().keySet()) {
+            log("" + k + '=' + System.getProperties().getProperty("" + k));
+        }
+
     }
 
     @Bean
@@ -84,26 +93,23 @@ public class AmqpConfiguration {
         return new JsonMessageConverter();
     }
 
-    ConnectionFactory connectionFactory(String user, String pw, String host , int port,  String  vhost  ) throws Throwable {
+    protected ConnectionFactory connectionFactory(String user, String pw, String host, int port, String vhost) throws Throwable {
         CachingConnectionFactory cachingConnectionFactory = new CachingConnectionFactory();
         cachingConnectionFactory.setUsername(user);
-        cachingConnectionFactory.setVirtualHost( vhost );
+        cachingConnectionFactory.setVirtualHost(vhost);
         cachingConnectionFactory.setPassword(pw);
         cachingConnectionFactory.setHost(host);
         cachingConnectionFactory.setPort(port);
         return cachingConnectionFactory;
     }
 
-    static void log (String msg, Object ... p ) throws Throwable {
-     System.out.println( String.format(msg, p));
-    }
     @Bean
     public ConnectionFactory connectionFactory() throws Throwable {
         String vcapServicesEnvVariable = System.getenv("VCAP_SERVICES");
 
         String uri = this.uriFromVcapServices(vcapServicesEnvVariable);
 
-        log("uri="+ uri );
+        log("uri=" + uri);
 
         URI uriObj = new URI(uri);
         String userInfoParts[] = uriObj.getUserInfo().split(":");
@@ -111,8 +117,11 @@ public class AmqpConfiguration {
         String pw = userInfoParts[1];
         String host = uriObj.getHost();
         String vHost = uriObj.getPath();
+        if (vHost.startsWith("/")) {   // the correct vhost is done without a '/'
+            vHost = vHost.substring(1);
+        }
         int port = uriObj.getPort();
-        return connectionFactory(user, pw, host ,  port ,vHost  );
+        return connectionFactory(user, pw, host, port, vHost);
     }
 
     @Bean
